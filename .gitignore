@@ -138,3 +138,7 @@ dmypy.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# File privat lokal
+produce.py
+tes_retry.py

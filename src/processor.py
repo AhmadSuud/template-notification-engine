@@ -4,6 +4,7 @@ Orchestrates the flow: Kafka raw -> Template rendering -> Kafka output
 """
 import logging
 import time
+import json
 from typing import Dict, Optional
 from .database import Database, NotificationTemplateRepository
 from .kafka_client import KafkaProducerClient
@@ -21,15 +22,12 @@ class NotificationProcessor:
         self.db = Database()
         self.template_repo = NotificationTemplateRepository(self.db)
         
-        # TAMBAHAN BARU: Inisialisasi Log Repository
         from .database import NotificationLogRepository
         self.log_repo = NotificationLogRepository(self.db) 
         
         self.templates = self.template_repo.get_all_active_templates()
         self.producer = KafkaProducerClient()
         self.renderer = TemplateRenderer()
-
-        # logger.info("NotificationProcessor initialized")
 
     def update_templates(self, message: Dict):
         try:
@@ -49,6 +47,20 @@ class NotificationProcessor:
         except Exception as e:
             logger.error(f"Error update templates: {e}", exc_info=True)
 
+    # --- FITUR BARU: Fungsi untuk melempar pesan cacat ke DLQ ---
+    def send_to_dlq(self, raw_value: str, error_reason: str):
+        dlq_message = {
+            "error_reason": error_reason,
+            "raw_payload": raw_value,
+            "timestamp": time.time()
+        }
+        self.producer.send_message(
+            topic=Config.KAFKA_DLQ_TOPIC,
+            message=dlq_message,
+            key=None
+        )
+        logger.info(f"Pesan beracun dialihkan ke DLQ. Alasan: {error_reason}")
+
     def process_message(self, message: Dict, topic: str = None):
         """Process a single notification message or status update"""
         try:
@@ -59,7 +71,6 @@ class NotificationProcessor:
                 error_msg = message.get('error_message')
                 
                 if event_id and status:
-                    # UBAH NAMA FUNGSI DI SINI:
                     self.log_repo.append_status(event_id, status, error_msg)
                     logger.info(f"Status Log Appended di Database: {event_id} -> {status}")
                 return
@@ -71,13 +82,19 @@ class NotificationProcessor:
             payload = message.get('payload', {})
             template_id = message.get('template_id')
 
-            # ... (kode pengecekan event_id dan template tetap sama) ...
+            # Lempar ke DLQ jika event_id tidak ada
             if not event_id:
-                logger.warning("Message missing event_id, skipping")
+                logger.warning("Message missing event_id, routing to DLQ")
+                self.send_to_dlq(json.dumps(message), "Missing event_id")
                 return
 
             if not channel:
                 logger.warning(f"Message {event_id} missing channel, skipping")
+                return
+
+            # --- FITUR BARU: Cek Idempotensi (Cegah Duplikasi Pengiriman) ---
+            if hasattr(self.log_repo, 'check_event_exists') and self.log_repo.check_event_exists(event_id):
+                logger.warning(f"IDEMPOTENSI: Event ID '{event_id}' sudah diproses sebelumnya. Mencegah duplikasi.")
                 return
 
             template = self.templates.get(template_id)
@@ -95,7 +112,6 @@ class NotificationProcessor:
                 logger.error(f"Failed to render body template for message {event_id}, skipping")
                 return
 
-            # --- UBAH NAMA FUNGSI DI SINI ---
             self.log_repo.insert_pending(
                 event_id=event_id,
                 template_id=template_id,
@@ -105,7 +121,6 @@ class NotificationProcessor:
                 payload=message 
             )
 
-            # ... (kode pengiriman ke output_topic tetap sama) ...
             output_message = {
                 'event_id': event_id,
                 'channel': channel,
@@ -157,6 +172,8 @@ class ETLEngine:
             consumer.consume_messages(
                 callback=self.processor.process_message,
                 updater=self.processor.update_templates,
+                # --- FITUR BARU: Masukkan dlq_handler ke parameter ---
+                dlq_handler=self.processor.send_to_dlq,
                 poll_timeout=0.1
             )
         except KeyboardInterrupt:

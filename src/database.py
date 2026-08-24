@@ -161,5 +161,15 @@ class NotificationLogRepository:
         except Exception as e:
             logger.error(f"Gagal append status log: {e}")
             self.db.rollback()
-    
+    def check_event_exists(self, event_id: str) -> bool:
+        """Mengecek apakah event_id sudah ada untuk mencegah duplikasi (Idempotensi)"""
+        try:
+            cursor = self.db.conn.cursor()
+            cursor.execute("SELECT 1 FROM notification_logs WHERE event_id = %s LIMIT 1", (event_id,))
+            exists = cursor.fetchone() is not None
+            cursor.close()
+            return exists
+        except Exception as e:
+            logger.error(f"Gagal mengecek eksistensi event: {e}")
+            return False
 

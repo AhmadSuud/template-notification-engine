@@ -18,17 +18,16 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-
 def main():
     """Main entry point for ETL Notification Engine"""
-    # logger.info("=" * 80)
-    # logger.info("ETL Notification Engine Starting")
-    # logger.info("=" * 80)
-    # logger.info(f"Kafka Bootstrap Servers: {Config.KAFKA_BOOTSTRAP_SERVERS}")
-    # logger.info(f"Kafka Consumer Group: {Config.KAFKA_GROUP_ID}")
-    # logger.info(f"Consuming from topic: {Config.KAFKA_TOPIC_RAW}")
-    # logger.info(f"Database: {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
-    # logger.info("=" * 80)
+    logger.info("=" * 80)
+    logger.info("ETL Notification Engine Starting")
+    logger.info("=" * 80)
+    logger.info(f"Kafka Bootstrap Servers: {Config.KAFKA_BOOTSTRAP_SERVERS}")
+    logger.info(f"Kafka Consumer Group: {Config.KAFKA_GROUP_ID}")
+    logger.info(f"Consuming from topics: {Config.KAFKA_TOPICS}")
+    logger.info(f"Database: {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
+    logger.info("=" * 80)
     
     # Create and start ETL engine
     engine = ETLEngine()
@@ -44,7 +43,6 @@ def main():
         logger.info("=" * 80)
         logger.info("ETL Notification Engine Stopped")
         logger.info("=" * 80)
-
 
 if __name__ == '__main__':
     main()

@@ -23,4 +23,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Menjalankan aplikasi
-CMD ["python", "main.py"]
+ENTRYPOINT ["python", "main.py"]

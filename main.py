@@ -20,10 +20,12 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='ETL Notification Engine')
-    parser.add_argument('--part', type=int, default=None, metavar='PARTITION',
-                        help='Kafka partition number to consume from')
+    parser.add_argument('--part', type=int, nargs='+', default=None, metavar='PARTITION',
+                        help='Kafka partition(s) to consume from (e.g. --part 0 1 2)')
     parser.add_argument('--offset', type=int, default=None, metavar='OFFSET',
-                        help='Starting offset (requires --part)')
+                        help='Starting offset applied to all specified partitions (requires --part)')
+    parser.add_argument('--group-id', type=str, default=None, metavar='GROUP_ID',
+                        help='Kafka consumer group.id (overrides env KAFKA_GROUP_ID)')
     args = parser.parse_args()
 
     if args.offset is not None and args.part is None:
@@ -42,13 +44,15 @@ def main():
     logger.info(f"Consuming from topics: {Config.KAFKA_TOPICS}")
     logger.info(f"Database: {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
     if args.part is not None:
-        logger.info(f"Mode: partition={args.part}, offset={args.offset}")
+        logger.info(f"Mode: partitions={args.part}, offset={args.offset}")
+    if args.group_id is not None:
+        logger.info(f"Consumer group.id override: {args.group_id}")
     logger.info("=" * 80)
 
     engine = ETLEngine()
 
     try:
-        engine.start(partition=args.part, offset=args.offset)
+        engine.start(partition=args.part, offset=args.offset, group_id=args.group_id)
     except KeyboardInterrupt:
         logger.info("\nShutdown signal received")
     except Exception as e:

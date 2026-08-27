@@ -17,10 +17,15 @@ DLQ_SCHEMA_STR = """{"type": "record", "name": "DlqMessage", "namespace": "bni.n
 STATUS_SCHEMA_STR = """{"type": "record", "name": "StatusMessage", "namespace": "bni.notification.status", "fields": [{"name": "event_id", "type": "string"}, {"name": "status", "type": "string"}, {"name": "error_message", "type": ["null", "string"], "default": null}]}"""
 
 class KafkaConsumerClient:
-    def __init__(self, topics: list = None, partition: int = None, offset: int = None):
+    def __init__(self, topics: list = None, partition=None, offset: int = None, group_id: str = None):
         self.topics = topics or [Config.KAFKA_TOPICS]
-        self.partition = partition
+        # partition bisa int tunggal atau list of int
+        if partition is not None:
+            self.partitions = partition if isinstance(partition, list) else [partition]
+        else:
+            self.partitions = None
         self.offset = offset
+        self.group_id = group_id
         self.consumer = None
         self.running = False
         self._initialize_consumer()
@@ -36,14 +41,16 @@ class KafkaConsumerClient:
         self.avro_deserializer_status = AvroDeserializer(sr_client, STATUS_SCHEMA_STR, lambda obj, ctx: obj)
 
         consumer_config = Config.get_kafka_consumer_config()
+        if self.group_id is not None:
+            consumer_config['group.id'] = self.group_id
         self.consumer = Consumer(consumer_config)
 
-        if self.partition is not None:
+        if self.partitions is not None:
             # Assign ke partisi spesifik saja, tanpa rebalance group
             offset = self.offset if self.offset is not None else 0
-            assignments = [TopicPartition(topic, self.partition, offset) for topic in self.topics]
+            assignments = [TopicPartition(topic, p, offset) for topic in self.topics for p in self.partitions]
             self.consumer.assign(assignments)
-            logger.info(f"Assigned partition={self.partition} offset={offset} on topics={self.topics}")
+            logger.info(f"Assigned partitions={self.partitions} offset={offset} on topics={self.topics}")
         else:
             self.consumer.subscribe(self.topics)
 

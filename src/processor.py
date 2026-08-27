@@ -140,7 +140,7 @@ class NotificationProcessor:
             is_retry_event = (topic == Config.KAFKA_RETRY_TOPIC)
             
             if not is_retry_event and self.log_repo.check_event_exists(event_id):
-                logger.warning(f"IDEMPOTENSI: Event {event_id} duplikat. Ditolak.")
+                logger.warning(f"IDEMPOTENSI: event dari partition: {partition} offset: {offset} duplikat. Ditolak.")
                 return
 
             pref = self.pref_repo.get_preference_by_cif(cif) if cif else None
@@ -207,9 +207,9 @@ class ETLEngine:
     def __init__(self):
         self.processor = NotificationProcessor()
 
-    def start(self, partition: int = None, offset: int = None):
+    def start(self, partition=None, offset: int = None, group_id: str = None):
         from .kafka_client import KafkaConsumerClient
-        consumer = KafkaConsumerClient(topics=Config.KAFKA_TOPICS.split(','), partition=partition, offset=offset)
+        consumer = KafkaConsumerClient(topics=Config.KAFKA_TOPICS.split(','), partition=partition, offset=offset, group_id=group_id)
         try:
             consumer.consume_messages(callback=self.processor.process_message, updater=self.processor.update_templates, dlq_handler=self.processor.send_to_dlq, poll_timeout=0.1)
         except KeyboardInterrupt: pass

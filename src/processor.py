@@ -97,7 +97,7 @@ class NotificationProcessor:
         formatted['is_non_finansial'] = (tran_type == 'H' and amount_val == 0 and bal_val == 0 and rev_flag == ' ')
         return formatted
 
-    def process_message(self, message: Dict, topic: str = None):
+    def process_message(self, message: Dict, topic: str = None, partition: int = None, offset: int = None):
         try:
             if topic and topic.startswith('notification.status'):
                 event_id = message.get('event_id')
@@ -193,7 +193,7 @@ class NotificationProcessor:
 
                 self.producer.send_message(topic=Config.get_topic_for_channel(channel), message=output_message, key=cif)
             
-            logger.info(f"Proses Event {event_id} selesai dlm {time.time() - start_time:.4f} dtk")
+            logger.info(f"Process event dari partition: {partition} offset: {offset} selesai dlm {time.time() - start_time:.4f} detik")
             
         except Exception as e:
             logger.error(f"Error proses pesan: {e}", exc_info=True)

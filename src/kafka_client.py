@@ -68,7 +68,7 @@ class KafkaConsumerClient:
                         message_data = self.avro_deserializer_raw(msg.value(), SerializationContext(topic_name, MessageField.VALUE))
                 
                 if topic_name in Config.KAFKA_TOPICS.split(','):
-                    callback(message_data, topic_name)
+                    callback(message_data, topic_name, msg.partition(), msg.offset())
                 elif topic_name == 'templates.raw':
                     updater(message_data)
                     

@@ -142,3 +142,5 @@ Desktop.ini
 # File privat lokal
 produce.py
 tes_retry.py
+
+./ssl/*

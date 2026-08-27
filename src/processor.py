@@ -140,7 +140,7 @@ class NotificationProcessor:
             is_retry_event = (topic == Config.KAFKA_RETRY_TOPIC)
             
             if not is_retry_event and self.log_repo.check_event_exists(event_id):
-                logger.warning(f"IDEMPOTENSI: event dari partition: {partition} offset: {offset} duplikat. Ditolak.")
+                logger.warning(f"IDEMPOTENSI: event dari partition: {partition} offset: {offset} event_id: {event_id} duplikat. Ditolak.")
                 return
 
             pref = self.pref_repo.get_preference_by_cif(cif) if cif else None
@@ -193,7 +193,7 @@ class NotificationProcessor:
 
                 self.producer.send_message(topic=Config.get_topic_for_channel(channel), message=output_message, key=cif)
             
-            logger.info(f"Process event dari partition: {partition} offset: {offset} selesai dlm {time.time() - start_time:.4f} detik")
+            logger.info(f"Process event dari partition: {partition} offset: {offset} event_id: {event_id} selesai dlm {time.time() - start_time:.4f} detik")
             
         except Exception as e:
             logger.error(f"Error proses pesan: {e}", exc_info=True)

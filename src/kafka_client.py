@@ -1,4 +1,4 @@
-from confluent_kafka import Consumer, Producer, KafkaError
+from confluent_kafka import Consumer, Producer, KafkaError, TopicPartition
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
 from confluent_kafka.serialization import SerializationContext, MessageField
@@ -17,8 +17,10 @@ DLQ_SCHEMA_STR = """{"type": "record", "name": "DlqMessage", "namespace": "bni.n
 STATUS_SCHEMA_STR = """{"type": "record", "name": "StatusMessage", "namespace": "bni.notification.status", "fields": [{"name": "event_id", "type": "string"}, {"name": "status", "type": "string"}, {"name": "error_message", "type": ["null", "string"], "default": null}]}"""
 
 class KafkaConsumerClient:
-    def __init__(self, topics: list = None):
+    def __init__(self, topics: list = None, partition: int = None, offset: int = None):
         self.topics = topics or [Config.KAFKA_TOPICS]
+        self.partition = partition
+        self.offset = offset
         self.consumer = None
         self.running = False
         self._initialize_consumer()
@@ -27,15 +29,23 @@ class KafkaConsumerClient:
         sr_conf = {'url': Config.SCHEMA_REGISTRY_URL}
         if Config.KAFKA_SECURITY_PROTOCOL == 'SSL':
             sr_conf['ssl.ca.location'] = Config.KAFKA_SSL_CA_LOCATION.replace('\\', '/')
-            
+
         sr_client = SchemaRegistryClient(sr_conf)
         # Deserializer dinamis: Raw (Data Mentah) & Status (Laporan dari Broadcaster)
         self.avro_deserializer_raw = AvroDeserializer(sr_client, RAW_SCHEMA_STR, lambda obj, ctx: obj)
         self.avro_deserializer_status = AvroDeserializer(sr_client, STATUS_SCHEMA_STR, lambda obj, ctx: obj)
-        
+
         consumer_config = Config.get_kafka_consumer_config()
         self.consumer = Consumer(consumer_config)
-        self.consumer.subscribe(self.topics)
+
+        if self.partition is not None:
+            # Assign ke partisi spesifik saja, tanpa rebalance group
+            offset = self.offset if self.offset is not None else 0
+            assignments = [TopicPartition(topic, self.partition, offset) for topic in self.topics]
+            self.consumer.assign(assignments)
+            logger.info(f"Assigned partition={self.partition} offset={offset} on topics={self.topics}")
+        else:
+            self.consumer.subscribe(self.topics)
 
     def consume_messages(self, callback: Callable[[Dict, str], None], updater: Callable[[Dict], None], dlq_handler: Callable[[str, str], None], poll_timeout: float = 1.0):
         self.running = True

@@ -207,9 +207,9 @@ class ETLEngine:
     def __init__(self):
         self.processor = NotificationProcessor()
 
-    def start(self):
+    def start(self, partition: int = None, offset: int = None):
         from .kafka_client import KafkaConsumerClient
-        consumer = KafkaConsumerClient(topics=Config.KAFKA_TOPICS.split(','))
+        consumer = KafkaConsumerClient(topics=Config.KAFKA_TOPICS.split(','), partition=partition, offset=offset)
         try:
             consumer.consume_messages(callback=self.processor.process_message, updater=self.processor.update_templates, dlq_handler=self.processor.send_to_dlq, poll_timeout=0.1)
         except KeyboardInterrupt: pass

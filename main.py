@@ -6,7 +6,6 @@ import sys
 from src.processor import ETLEngine
 from src.config import Config
 
-# Configure logging
 logging.basicConfig(
     level=getattr(logging, Config.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,9 +18,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
-    """Main entry point for ETL Notification Engine"""
     logger.info("=" * 80)
-    logger.info("ETL Notification Engine Starting")
+    logger.info("ETL Notification Engine Starting (BNI Final Version)")
     logger.info("=" * 80)
     logger.info(f"Kafka Bootstrap Servers: {Config.KAFKA_BOOTSTRAP_SERVERS}")
     logger.info(f"Kafka Consumer Group: {Config.KAFKA_GROUP_ID}")
@@ -29,7 +27,6 @@ def main():
     logger.info(f"Database: {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
     logger.info("=" * 80)
     
-    # Create and start ETL engine
     engine = ETLEngine()
     
     try:
